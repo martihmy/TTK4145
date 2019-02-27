@@ -3,9 +3,6 @@ package SM
 import (
 	"fmt"
 	"time"
-
-	//  . "github.com/perkjelsvik/TTK4145-sanntid/project/config"
-	//  hw "github.com/perkjelsvik/TTK4145-sanntid/project/hardware"
 )
 
 // StateMachineChannels contains all channels between governor - esm and hardware - esm
