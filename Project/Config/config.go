@@ -1,4 +1,4 @@
-package config
+package Project
 
 const (
 	NumFloors    = 4
@@ -41,5 +41,6 @@ type Elevator struct {
 	Dir MotorDirection
 	Floor int
 	Queue[NumFloors][NumButtons]bool
+	ID int //May have to be moved to some other struct 
 }
 

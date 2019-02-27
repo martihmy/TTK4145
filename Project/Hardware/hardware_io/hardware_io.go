@@ -1,4 +1,4 @@
-package hardware_io
+package Project
 
 
 import "time"
@@ -6,12 +6,10 @@ import "sync"
 import "net"
 import "fmt"
 // New 
-import "../Config.config" 
+import "config" 
 
 //
-
-// test
-i = config.NumFloors 
+i = NumFloors
 
 const _pollRate = 20 * time.Millisecond
 
