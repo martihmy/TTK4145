@@ -1,52 +1,50 @@
-package elevatorStateMachine
 
-import . "github.com/perkjelsvik/TTK4145-sanntid/project/config"
 
 func shouldStop(elevator Elev) bool {
 	switch elevator.Dir {
-	case DirUp:
+	case Dir_Up:
 		return elevator.Queue[elevator.Floor][BtnUp] ||
-			elevator.Queue[elevator.Floor][BtnInside] ||
+			elevator.Queue[elevator.Floor][BtnCab] ||
 			!ordersAbove(elevator)
-	case DirDown:
+	case Dir_Down:
 		return elevator.Queue[elevator.Floor][BtnDown] ||
-			elevator.Queue[elevator.Floor][BtnInside] ||
+			elevator.Queue[elevator.Floor][BtnCab] ||
 			!ordersBelow(elevator)
-	case DirStop:
+	case Dir_Stop:
 	default:
 	}
 	return false
 }
 
-func chooseDirection(elevator Elev) Direction {
+func chooseDirection(elevator Elev) MotorDirection {
 	switch elevator.Dir {
-	case DirStop:
+	case Dir_Stop:
 		if ordersAbove(elevator) {
-			return DirUp
+			return Dir_Up
 		} else if ordersBelow(elevator) {
-			return DirDown
+			return Dir_Down
 		} else {
-			return DirStop
+			return Dir_Stop
 		}
-	case DirUp:
+	case Dir_Up:
 		if ordersAbove(elevator) {
-			return DirUp
+			return Dir_Up
 		} else if ordersBelow(elevator) {
-			return DirDown
+			return Dir_Down
 		} else {
-			return DirStop
+			return Dir_Stop
 		}
 
-	case DirDown:
+	case Dir_Down:
 		if ordersBelow(elevator) {
-			return DirDown
+			return Dir_Down
 		} else if ordersAbove(elevator) {
-			return DirUp
+			return Dir_Up
 		} else {
-			return DirStop
+			return Dir_Stop
 		}
 	}
-	return DirStop
+	return Dir_Stop
 }
 
 func ordersAbove(elevator Elev) bool {
