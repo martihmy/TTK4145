@@ -1,120 +1,84 @@
-package SM 
+package SM
 
-import (
-	"fmt"
+import {
+	"../Config"
 	"time"
-)
+	"fmt"
+	hw "../Hardware"
 
-// StateMachineChannels contains all channels between governor - esm and hardware - esm
-type StateMachineChannels struct {
-	OrderComplete  chan ButtonEvent
-	NewOrder       chan Elevator
-	//StateError     chan error
-	//NewOrder       chan ButtonEvent
-	ArrivedAtFloor chan int
 }
 
-// RunElevator called as a goroutine; runs elevator and updates governor for changes
-func RunElevator(ch StateMachineChannels) {
-	elevator := Elev{
-		State: Idle,
-		Dir:   DirStop,
-		Floor: hw.GetFloorSensorSignal(),
-		Queue: [NumFloors][NumButtons]bool{},
+type SMChannels struct {
+	NewOrder		chan ButtonEvent
+	Elevator 		chan Elevator
+	FloorArrival	chan int 
+}
+
+
+
+
+func elevatorRun(ch SMChannels) {
+	elevator := Elevator{ //Initialization of elevator object
+		State: Idle
+		MotorDirection: Dir_Stop
+		Floor: getFloor() //Should perhaps be initialized with some function in hw or at least use channals to get floor signal
+		Queue: [NumFloors][NumButtons]bool{}
+		ID: //Maybe assign ID from some online 
 	}
-	doorTimedOut := time.NewTimer(3 * time.Second)
-	engineErrorTimer := time.NewTimer(3 * time.Second)
-	doorTimedOut.Stop()
-	engineErrorTimer.Stop()
-	orderCleared := false
+	
+	doorOpenTimer := time.NewTimer(3*time.Second)
+	doorOpenTimer.Stop()
+
 	ch.Elevator <- elevator
 
-	for {
-		select {
-		case newOrder := <-ch.NewOrder:
-			if newOrder.Done {
-				elevator.Queue[newOrder.Floor][BtnUp] = false
-				elevator.Queue[newOrder.Floor][BtnDown] = false
-				orderCleared = true
-			} else {
-				elevator.Queue[newOrder.Floor][newOrder.Btn] = true
-			}
-
-			switch elevator.State {
+	for{
+		select{
+		case newOrder := <- ch.NewOrder:
+			//Do we have to do some checks for order complete?
+			switch elevator.State{
 			case Idle:
-				elevator.Dir = chooseDirection(elevator)
-				hw.SetMotorDirection(elevator.Dir)
-				if elevator.Dir == DirStop {
+				elevator.MotorDirection = chooseDirection(elevator)
+				hw.SetMotorDirection(elevator.MotorDirection)
+				if elevator.MotorDirection == Dir_Stop {
 					elevator.State = DoorOpen
 					hw.SetDoorOpenLamp(1)
-					doorTimedOut.Reset(3 * time.Second)
-					go func() { ch.OrderComplete <- newOrder.Floor }()
-					elevator.Queue[elevator.Floor] = [NumButtons]bool{}
+					doorOpenTimer.Reset(3*time.Second)
+					//go func() {ch.OrderComplete <- newOrder.Floor}() -- Send message to governor on OrderComplete channal and ask to turn of all lights for that floor. 
 				} else {
 					elevator.State = Moving
-					engineErrorTimer.Reset(3 * time.Second)
 				}
-
-			case Moving:
+			case Moving: //Keep moving until arrived at floor
 			case DoorOpen:
 				if elevator.Floor == newOrder.Floor {
-					doorTimedOut.Reset(3 * time.Second)
-					go func() { ch.OrderComplete <- newOrder.Floor }()
-					elevator.Queue[elevator.Floor] = [NumButtons]bool{}
+					doorOpenTimer.Reset(3*time.Second)
+					//go func() {ch.OrderComplete <- newOrder.Floor}() -- Send message to governor on OrderComplete channal and ask to turn of all lights for that floor.
+
 				}
-
-			case Undefined:
-			default:
-				fmt.Println("Fatal error: Reboot system")
-			}
+				}
 			ch.Elevator <- elevator
 
-		case elevator.Floor = <-ch.ArrivedAtFloor:
-			fmt.Println("Arrived at floor", elevator.Floor+1)
-			if shouldStop(elevator) ||
-				(!shouldStop(elevator) && elevator.Queue == [NumFloors][NumButtons]bool{} && orderCleared) {
-				orderCleared = false
+			}
+		case elevator.Floor = <- ch.FloorArrival:
+			if shouldStop(elevator) {
 				hw.SetDoorOpenLamp(1)
-				engineErrorTimer.Stop()
 				elevator.State = DoorOpen
-				hw.SetMotorDirection(DirStop)
-				doorTimedOut.Reset(3 * time.Second)
-				elevator.Queue[elevator.Floor] = [NumButtons]bool{}
-				go func() { ch.OrderComplete <- elevator.Floor }()
-
-			} else if elevator.State == Moving {
-				engineErrorTimer.Reset(3 * time.Second)
+				hw.SetMotorDirection(Dir_stop)
+				doorOpenTimer.Reset(3*time.Second)
+				//go func() {ch.OrderComplete <- elevator.Floor}() -- Send message to governor on OrderComplete channal and ask to turn of lights
 			}
 			ch.Elevator <- elevator
-
-		case <-doorTimedOut.C:
+			}
+		case <- doorOpenTimer.C
 			hw.SetDoorOpenLamp(0)
 			elevator.Dir = chooseDirection(elevator)
-			if elevator.Dir == DirStop {
+			if elevator.Dir == Dir_Stop {
 				elevator.State = Idle
-				engineErrorTimer.Stop()
 			} else {
 				elevator.State = Moving
-				engineErrorTimer.Reset(3 * time.Second)
 				hw.SetMotorDirection(elevator.Dir)
 			}
 			ch.Elevator <- elevator
-
-		case <-engineErrorTimer.C:
-			hw.SetMotorDirection(DirStop)
-			elevator.State = Undefined
-			fmt.Println("\x1b[1;1;33m", "Engine Error - Go offline", "\x1b[0m")
-			for i := 0; i < 10; i++ {
-				if i%2 == 0 {
-					hw.SetStopLamp(1)
-				} else {
-					hw.SetStopLamp(0)
-				}
-				time.Sleep(time.Millisecond * 200)
-			}
-			hw.SetMotorDirection(elevator.Dir)
-			ch.Elevator <- elevator
-			engineErrorTimer.Reset(5 * time.Second)
 		}
 	}
+
 }
