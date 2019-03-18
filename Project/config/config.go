@@ -2,16 +2,16 @@ package config
 
 const (
 	NumFloors    = 4
-	NumElevators = 3
+	NumElevators = 1
 	NumButtons   = 3
 )
 
 type ButtonType int
 
 const (
-	BtnUp   ButtonType 	= 0
-	BtnDown           	= 1
-	BtnCab             	= 2
+	Btn_Up   ButtonType 	= 0
+	Btn_Down         	 	= 1
+	Btn_Cab             	= 2
 )
 
 type MotorDirection int
@@ -25,6 +25,7 @@ const (
 type ButtonEvent struct {
 	Floor  int
 	Button ButtonType
+	DesignatedID int 
 }
 
 type ElevState int
@@ -43,4 +44,3 @@ type Elevator struct {
 	Queue[NumFloors][NumButtons]bool
 	//ID int //May have to be moved to some other struct 
 }
-

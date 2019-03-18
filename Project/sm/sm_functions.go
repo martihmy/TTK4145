@@ -5,12 +5,12 @@ import(. "../config"
 func shouldStop(elevator Elevator) bool {
 	switch elevator.Dir {
 	case Dir_Up:
-		return elevator.Queue[elevator.Floor][BtnUp] ||
-			elevator.Queue[elevator.Floor][BtnCab] ||
+		return elevator.Queue[elevator.Floor][Btn_Up] ||
+			elevator.Queue[elevator.Floor][Btn_Cab] ||
 			!ordersAbove(elevator)
 	case Dir_Down:
-		return elevator.Queue[elevator.Floor][BtnDown] ||
-			elevator.Queue[elevator.Floor][BtnCab] ||
+		return elevator.Queue[elevator.Floor][Btn_Down] ||
+			elevator.Queue[elevator.Floor][Btn_Cab] ||
 			!ordersBelow(elevator)
 	case Dir_Stop:
 	default:

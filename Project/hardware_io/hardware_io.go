@@ -95,7 +95,8 @@ func SetStopLamp(value bool) {
 
 
 
-func PollButtons(NewOrder chan<- ButtonEvent) {
+func PollButtons(btnPressChan chan ButtonEvent) {
+	var btnpress ButtonEvent
 	prev := make([][3]bool, _numFloors)
 	for {
 		time.Sleep(_pollRate)
@@ -103,7 +104,9 @@ func PollButtons(NewOrder chan<- ButtonEvent) {
 			for b := ButtonType(0); b < 3; b++ {
 				v := getButton(b, f)
 				if v != prev[f][b] && v != false {
-					NewOrder<- ButtonEvent{f, ButtonType(b)}
+					btnpress.Floor = f
+					btnpress.Button = b
+					btnPressChan <- btnpress
 				}
 				prev[f][b] = v
 			}

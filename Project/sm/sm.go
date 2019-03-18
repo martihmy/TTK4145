@@ -11,6 +11,7 @@ type SMChannels struct {
 	NewOrder		chan ButtonEvent
 	Elevator 		chan Elevator
 	FloorArrival	chan int
+	ServicedFloor	chan int
 }
 
 
@@ -27,13 +28,15 @@ func ElevatorRun(ch SMChannels, initialFloor int) {
 	}
 	doorOpenTimer := time.NewTimer(3*time.Second)
 	doorOpenTimer.Stop()
-	//ch.Elevator <- elevator ALL OF THESE HAS BEEN COMMENTED OUT BECAUSE THEY WERE BLOCKING THE SM FROM RUNNING
+	ch.Elevator <- elevator //Update gov with initilized struct
 
 	for{
 		select{
 		case newOrder := <- ch.NewOrder:
+			fmt.Println(newOrder.Floor)
 			elevator.Queue[newOrder.Floor][newOrder.Button] = true //Temporarily until we have sorted our Queue system in Governor**
 			//Do we have to do some checks for order complete?
+
 			switch elevator.State{
 			case Idle:
 				elevator.Dir = chooseDirection(elevator)
@@ -42,7 +45,7 @@ func ElevatorRun(ch SMChannels, initialFloor int) {
 					elevator.State = DoorOpen
 					hw.SetDoorOpenLamp(true)
 					doorOpenTimer.Reset(3*time.Second)
-					//go func() {ch.OrderComplete <- newOrder.Floor}() -- Send message to governor on OrderComplete channal and ask to turn of all lights for that floor. 
+					go func() {ch.ServicedFloor <- newOrder.Floor}() //-- Send message to governor on OrderComplete channal and ask to turn of all lights for that floor. 
 				} else {
 					elevator.State = Moving
 				}
@@ -52,13 +55,11 @@ func ElevatorRun(ch SMChannels, initialFloor int) {
 			case DoorOpen:
 				if elevator.Floor == newOrder.Floor {
 					doorOpenTimer.Reset(3*time.Second)
-					//go func() {ch.OrderComplete <- newOrder.Floor}() -- Send message to governor on OrderComplete channal and ask to turn of all lights for that floor.
+					go func() {ch.ServicedFloor <- newOrder.Floor}() // Send message to governor on OrderComplete channal and ask to turn of all lights for that floor.
 
 				}
-				
-			//ch.Elevator <- elevator
-
 			}
+			//ch.Elevator <- elevator //to update when change in state
 
 		case elevator.Floor = <- ch.FloorArrival:
 			if shouldStop(elevator) {
@@ -68,7 +69,7 @@ func ElevatorRun(ch SMChannels, initialFloor int) {
 				doorOpenTimer.Reset(3*time.Second)
 				elevator.Queue[elevator.Floor] = [NumButtons]bool{} //Removes floor from queue after finised. See ** above
 
-				//go func() {ch.OrderComplete <- elevator.Floor}() -- Send message to governor on OrderComplete channal and ask to turn of lights
+				go func() {ch.ServicedFloor <- elevator.Floor}() //-- Send message to governor on OrderComplete channal and ask to turn of lights
 			}
 			//ch.Elevator <- elevator
 
@@ -81,7 +82,7 @@ func ElevatorRun(ch SMChannels, initialFloor int) {
 				elevator.State = Moving
 				hw.SetMotorDirection(elevator.Dir)
 			}
-			//ch.Elevator <- elevator
+			//ch.Elevator <- elevator //to update when change in state
 		}
 	}
 
