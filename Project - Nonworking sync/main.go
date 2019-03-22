@@ -33,18 +33,17 @@ func main() {
 	}
 
 	syncChans := sync.SyncChannels {
-	UpdateSynchronizer:			make(chan Elevator),
-	ReceiveFulfillmentTimer:make(chan ButtonEvent),
-	SendFulfillmentTimer: 	make(chan ButtonEvent),
-	LocalFulfillmentTimer:	make(chan ButtonEvent),
-	OutgoingOrder: 					make(chan ButtonEvent),
-	IncomingOrder:					make(chan ButtonEvent),
-	OrderAcknowledged:			make(chan ButtonEvent),
-	DoItMySelf:							make(chan ButtonEvent),
-	IncomingUpdateMsg:			make(chan Elevator),
-	OutgoingUpdateMsg: 			make(chan Elevator),
-	SendOrder: 							make(chan ButtonEvent),
-	OrderFulfilled:					make(chan ButtonEvent),
+	UpdateSynchronizer		make(chan Elevator),
+	IncomingUpdateMsg		make(chan Elevator),
+	OutgoingUpdateMsg 		make(chan Elevator),
+	UpdateGov				make(chan Elevator),
+	OutgoingOrder 			make(chan ButtonEvent),
+	IncomingOrder			make(chan ButtonEvent),
+	DoItMySelf				make(chan ButtonEvent),
+	SendOrder 				make(chan ButtonEvent),
+	OrderAck				make(chan TimerMsg),
+	ReceiveTimerMsg 		make(chan TimerMsg),
+	SendTimerMsg			make(chan TimerMsg),
 	}
 
 
@@ -61,7 +60,7 @@ func main() {
 	go hw.PollFloorSensor(smChans.FloorArrival)
 	initFloor := hw.InitElev(smChans.FloorArrival)
 	go hw.PollButtons(btnPressChan)
-	go gov.ElevGovernor(ID, btnPressChan, smChans.NewOrder, lightUpdaterChan, smChans.Elevator, smChans.ServicedFloor, syncChans.SendOrder, syncChans.UpdateSynchronizer)
+	go gov.ElevGovernor(ID, btnPressChan, smChans.NewOrder, lightUpdaterChan, smChans.Elevator, smChans.ServicedFloor, syncChans.SendOrder, syncChans.UpdateSynchronizer, syncChans.UpdateGov)
 	go gov.LightUpdater(lightUpdaterChan,ID)
 	go sm.ElevatorRun(smChans, initFloor,ID)
 	go sync.ElevatorSynchronizer(syncChans, ID, smChans.NewOrder)
@@ -69,7 +68,7 @@ func main() {
 	//Must handle if an elevator goes down and reinitialized with a zero queue (so it copies its queue from someone else)
 
 
-	go bcast.Transmitter(20034, syncChans.OutgoingOrder, syncChans.IncomingUpdateMsg, syncChans.SendFulfillmentTimer, smChans.OrderFulfilled)
-	go bcast.Receiver(20034, syncChans.IncomingOrder, syncChans.OutgoingUpdateMsg, syncChans.ReceiveFulfillmentTimer, syncChans.OrderFulfilled )
+	go bcast.Transmitter(20034, syncChans.OutgoingOrder, syncChans.OutgoingUpdateMsg, syncChans.SendTimerMsg)
+	go bcast.Receiver(20034, syncChans.IncomingOrder, syncChans.IncomingUpdateMsg, syncChans.ReceiveTimerMsg)
 	select {}
 }

@@ -72,8 +72,7 @@ type OrderMsg struct {
 }
 
 type TimerMsg struct {
-	orderID 					int
-	OrderAck					bool
-	StartFulfillTimer	bool
+	OrderID 					int
+	Ack							bool
 	Fulfilled					bool
 }

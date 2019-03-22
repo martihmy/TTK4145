@@ -3,13 +3,13 @@ package governor
 import (. "../config"
 		hw "../hardware_io"
 		//"fmt"
-		"time"
+		//"time"
 		//sync "../elevSync"
 )
 
 
 func ElevGovernor(id int, btnPressChan chan ButtonEvent, newOrderChan chan ButtonEvent, lightUpdaterChan chan [NumElevators]Elevator,
-	elevatorChan chan Elevator, servicedFloorChan chan int, sendOrderChan chan ButtonEvent, syncUpdateChan chan Elevator){
+	elevatorChan chan Elevator, servicedFloorChan chan int, sendOrderChan chan ButtonEvent, syncUpdateChan chan Elevator, updateGovChan chan Elevator){
 
 	var(
 		elevatorList [NumElevators]Elevator
@@ -20,6 +20,13 @@ func ElevGovernor(id int, btnPressChan chan ButtonEvent, newOrderChan chan Butto
 
 	for {
 		select {
+		case updateOnOtherElev := <- updateGovChan:
+			elevatorList[updateOnOtherElev.ID]=updateOnOtherElev
+
+		case updateOnThisElev := <- elevatorChan:
+			elevatorList[id]=updateOnThisElev
+
+
 		case newLocalOrder := <- btnPressChan:
 			newLocalOrder.DesignatedID = id
 			newLocalOrder.OrderID = 0
@@ -44,7 +51,6 @@ func ElevGovernor(id int, btnPressChan chan ButtonEvent, newOrderChan chan Butto
 
 				}
 			}
-		case localStateUpdate := <- elevatorChan:
 
 
 				//Might want to make this a go function

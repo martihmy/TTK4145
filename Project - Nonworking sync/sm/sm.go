@@ -19,7 +19,7 @@ type SMChannels struct {
 
 
 
-func ElevatorRun(ch SMChannels, initialFloor int, id int) {
+func ElevatorRun(ch SMChannels, initialFloor int, id int, sendTimerMsgChan chan TimerMsg) {
 	elevator := Elevator{ //Initialization of elevator object
 		State: Idle,
 		Dir: Dir_Stop,
@@ -56,8 +56,8 @@ func ElevatorRun(ch SMChannels, initialFloor int, id int) {
 				if elevator.Floor == newOrder.Floor {
 
 					//ch.OrderFulfilled <- newOrder
-					timerMsg := TimerMsg{newOrder.OrderID, false, false, true}
-					ch.SendTimerMsg<- timerMsg
+					timerMsg := TimerMsg{newOrder.OrderID, false, true}
+					sendTimerMsgChan<- timerMsg
 
 					doorOpenTimer.Reset(3*time.Second)
 					go func() {ch.ServicedFloor <- newOrder.Floor}() // Send message to governor on OrderComplete channal and ask to turn of all lights for that floor.
