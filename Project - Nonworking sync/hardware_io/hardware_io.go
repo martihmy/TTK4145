@@ -5,8 +5,8 @@ import "time"
 import "sync"
 import "net"
 import "fmt"
-// New 
-import . "../config" 
+// New
+import . "../config"
 
 //
 //i = config.NumFloors

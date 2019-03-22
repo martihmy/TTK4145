@@ -4,28 +4,25 @@ import (. "../config"
 		hw "../hardware_io"
 		//"fmt"
 		"time"
-		sync "../elevSync"
+		//sync "../elevSync"
 )
 
 
-func ElevGovernor(id int, btnPressChan chan ButtonEvent, newOrderChan chan ButtonEvent, lightUpdaterChan chan [NumElevators]Elevator, 
-	elevatorChan chan Elevator, servicedFloorChan chan int, sendOrder chan ButtonEvent){
+func ElevGovernor(id int, btnPressChan chan ButtonEvent, newOrderChan chan ButtonEvent, lightUpdaterChan chan [NumElevators]Elevator,
+	elevatorChan chan Elevator, servicedFloorChan chan int, sendOrderChan chan ButtonEvent, syncUpdateChan chan Elevator){
 
 	var(
 		elevatorList [NumElevators]Elevator
 		servicedOrder	ButtonEvent
 	)
 	elevatorList[id] = <- elevatorChan
-
-
-
-	updateSynchronizer <- elevatorList[id] //assures that all elevators in continously updated on direction, floor, orders and states
+	syncUpdateChan <- elevatorList[id] //assures that all elevators in continously updated on direction, floor, orders and states
 
 	for {
 		select {
 		case newLocalOrder := <- btnPressChan:
 			newLocalOrder.DesignatedID = id
-			newLocalOrder.OrderId = 0
+			newLocalOrder.OrderID = 0
 			if newLocalOrder.Button == Btn_Cab{
 				elevatorList[id].Queue[newLocalOrder.Floor][Btn_Cab] = true //byttet Button med Floor
 				lightUpdaterChan <- elevatorList
@@ -33,20 +30,24 @@ func ElevGovernor(id int, btnPressChan chan ButtonEvent, newOrderChan chan Butto
 			} else {
 				if !orderAlreadyInQueue(newLocalOrder, elevatorList, id) {
 					newLocalOrder.DesignatedID = costCalculation(newLocalOrder, elevatorList)
-					if newLocalOrder.DesignatedID == id {
-						sendOrder <- newLocalOrder
+					sendOrderChan <- newLocalOrder
+
+				/*	if newLocalOrder.DesignatedID == id {
+						sendOrderChan <- newLocalOrder
 						time.Sleep(300*time.Millisecond)
 						newOrderChan <- newLocalOrder
 					} else {
-						sendOrder <- newLocalOrder
+						sendOrderChan <- newLocalOrder
 					}
 					//orderUpdate <- newLocalOrder
-
+*/
 
 				}
 			}
+		case localStateUpdate := <- elevatorChan:
 
-				//Might want to make this a go function 
+
+				//Might want to make this a go function
 			//Need to set lights at some point
 			//orderUpdate <- newLocalOrder
 		case servicedOrder.Floor = <- servicedFloorChan:
@@ -60,9 +61,8 @@ func ElevGovernor(id int, btnPressChan chan ButtonEvent, newOrderChan chan Butto
 						elevatorList[elev].Queue[servicedOrder.Floor][button] = false
 					}
 				}
-				OrderServiced<- true 
 			}
-			lightUpdaterChan <- elevatorList //Update lights, assumes that the servicedOrder sent to sync has managed to update the other elevators 
+			lightUpdaterChan <- elevatorList //Update lights, assumes that the servicedOrder sent to sync has managed to update the other elevators
 		}
 	}
 }
@@ -85,7 +85,7 @@ func LightUpdater (lightUpdaterChan <- chan [NumElevators]Elevator, id int){
 
 					}
 
-				} 
+				}
 				if orderPlaced == [NumElevators]bool{}{
 					hw.SetButtonLamp(button, floor, false)
 				}

@@ -10,21 +10,22 @@ import (
 
 type SyncChannels struct {
 	UpdateSynchronizer		chan Elevator
-	RecieveFulfillmentTimer chan ButtonEvent
-	SendFulfillmentTimer 	chan ButtonEvent
-	LocalFulfillmentTimer	chan ButtonEvent
-	OutgoingOrder 			chan ButtonEvent
-	IncommingOrder			chan ButtonEvent
-	OrderAcknowledged		chan ButtonEvent
-	DoItMySelf				chan ButtonEvent
 	IncomingUpdateMsg		chan Elevator
 	OutgoingUpdateMsg 		chan Elevator
+	OutgoingOrder 			chan ButtonEvent
+	IncomingOrder			chan ButtonEvent
+	ReceiveFulfillmentTimer chan ButtonEvent
+	SendFulfillmentTimer 	chan ButtonEvent
+	LocalFulfillmentTimer	chan ButtonEvent
+	OrderAck			chan ButtonEvent
+	DoItMySelf				chan ButtonEvent
 	SendOrder 				chan ButtonEvent
 	OrderFulfilled 			chan ButtonEvent
+	ReceiveTimerMsg chan TimerMsg
 }
 
 
-func ElevatorSynchronizer(ch SyncChannels, id int, newOrderChan chan ButtonEvent) {
+func ElevatorSynchronizer(ch SyncChannels, id int, newOrderChan chan ButtonEvent, orderFulfilledChan chan ButtonEvent) {
 
 	var (
 		elevatorList [NumElevators]Elevator
@@ -47,18 +48,18 @@ func ElevatorSynchronizer(ch SyncChannels, id int, newOrderChan chan ButtonEvent
 			ch.OutgoingUpdateMsg <- newElevUpdate				//Broadcast the change to other elevators, make sure to check that you do not send an empty queue if you have just been reinitialized
 
 		case updateMsg := <- ch.IncomingUpdateMsg: 	//change in some other elevator struct has occurred
-			elevatorList[updateMsg.ID] = updateMsg 	//Update your own elevatorList at the other elevators ID 
+			elevatorList[updateMsg.ID] = updateMsg 	//Update your own elevatorList at the other elevators ID
 													//Send the change from the other elevator to SetupF
 
 
 
-		case orderToBeFulfilled := <- ch.RecieveRemoteFulfillmentTimer: //From reciever
-			orderId := orderToBeFulfilled.OrderID
+	/*	case startFulfilmentTimer := <- ch.ReceiveFulfillmentTimer: //From reciever
+			orderId := startFulfilmentTimer.OrderID
 			Fulfill_Timer.Reset(5*time.Second)
 			for {
 				select{
-					case orderFulfilled := <- orderFulfilledChan: //From reciever
-							if orderFulfilled.OrderId == orderId {
+					case orderFulfilled := <- Ch.OrderFulfilled: //From reciever
+							if orderFulfilled.OrderID == orderId && orderFulfilled.Fulfilled {
 								Fulfill_Timer.Stop()
 								break
 							}
@@ -68,16 +69,17 @@ func ElevatorSynchronizer(ch SyncChannels, id int, newOrderChan chan ButtonEvent
 					}
 				}
 			if orderToBeFulfilled.DesignatedID == id {
-				ch.DoItMySelf	:= <-orderToBeFulfilled 
-			}
+				ch.DoItMySelf <-orderToBeFulfilled
+			}*/
 
+/*
 		case orderToBeFulfilled := <- ch.LocalFulfillmentTimer:
 			orderId := orderToBeFulfilled.OrderID
 			Fulfill_Timer.Reset(5*time.Second)
 			for {
 				select{
 					case orderFulfilled := <- orderFulfilledChan: //From reciever
-							if orderFulfilled.OrderId == orderId {
+							if orderFulfilled.OrderID == orderId {
 								Fulfill_Timer.Stop()
 								break
 							}
@@ -87,54 +89,81 @@ func ElevatorSynchronizer(ch SyncChannels, id int, newOrderChan chan ButtonEvent
 					}
 				}
 			if orderToBeFulfilled.DesignatedID == id {
-				ch.DoItMySelf	:= <-orderToBeFulfilled 
+				ch.DoItMySelf <-orderToBeFulfilled
 			}
-
+*/
 		case orderTakeOver := <- ch.DoItMySelf:
-			ch.RemoteFulfillTimer <- orderTakeOver
 			newOrderChan <- orderTakeOver
 
-		
+
 		case outGoingOrder := <- ch.SendOrder:			//Broadcast order to other elevators
 			if outGoingOrder.DesignatedID != id { 	//Check if sendOrder.DesignatedID is not my id
 				outGoingOrder.OrderID = rand.Intn(1000)
-				orderId := outGoingOrder.OrderId
-				ch.OutgoingOrder <- outGoingOrder 
+				orderId := outGoingOrder.OrderID
+				ch.OutgoingOrder <- outGoingOrder
 				Ack_Timer.Reset(2*time.Second) 		//Start acknowledgement timer
 				for {
 					select{
-						case orderAck := <- ch.OrderAcknowledged:
-							if orderAck.OrderId == orderId {
+						case orderAck := <- ch.OrderAck:
+							if orderAck.OrderID == orderId && orderAck.Ack {
 								Ack_Timer.Stop()
-								break
+								Fulfill_Timer.Reset(5*time.Second)
 							}
+						case orderFulfilled := <- ch.OrderFulfilled:
+								if orderFulfilled.OrderID == orderId && orderFulfilled.Fullfilled {
+									Fulfill_Timer.Stop()
+									break
+								}
 						case <- Ack_Timer.C:
+							fallthrough
+						case <- Fulfill_Timer.C:
 							outGoingOrder.DesignatedID = id
 							break
 					}
 				}
-			} 
+			}
 			if outGoingOrder.DesignatedID == id {
-				ch.OutGoingOrder <- outGoingOrder
+				ch.outGoingOrder <- outGoingOrder
+				ch.DoItMySelf <- outGoingOrder
 
 			}
 
-					//Recieve acknowledgement through a start fulfillmenttimer signal
-					//Stop ack_timer and start fulfillment timer
-			//Stop timer when fullfilment is comfirmed
+		case newTimerMsg := <- ch.ReceiveTimerMsg:
+			if newTimerMsg.Ack {
+				ch.OrderAck <- newTimerMsg
+			} else if newTimerMsg.StartFulfillTimer {
+					ch.ReceiveFulfillmentTimer<-newTimerMsg
+			} else if newTimerMsg.Fulfilled {
+					ch.orderFulfilled <- newTimerMsg
+			}
 
 
 		case newOrder := <- ch.IncomingOrder: 	//New order is recieved from master
 			if newOrder.DesignatedID == id {	//Check if we are suppose to take this order (Desginated order id is our id)
-				ch.OrderAcknowledged <- newOrder
-				ch.SendRemoteFulfillTimer <- newOrder //asks other elevators to start their fulfill timers
+				timerMsg := TimerMsg{newOrder.OrderID, true, false, false}
+				ch.SendTimerMsg <- timerMsg
 				newOrderChan <- newOrder
-												
 												//When order is finished --> tell other elevators to stop their fulfillmenttimers (might have to be done from some other place)
 												//Tell governor to turn of lights
 			} else {
-				ch.LocalFulfillmentTimer <- newOrder 
+				orderId := newOrder.OrderID
+				Fulfill_Timer.Reset(5*time.Second)
+				for {
+					select{
+						case orderFulfilled := <- Ch.OrderFulfilled: //From reciever
+								if orderFulfilled.OrderID == orderId && orderFulfilled.Fulfilled {
+									Fulfill_Timer.Stop()
+									break
+								}
+						case <- Fulfill_Timer.C:
+							newOrder.DesignatedID = id
+							ch.outGoingOrder <- outGoingOrder
+							ch.DoItMySelf <- newOrder
+							break
+						}
+					}
 			}
+
 
 
 

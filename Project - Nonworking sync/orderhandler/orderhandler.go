@@ -21,29 +21,25 @@ func orderHandler(...) {
 	Fulfill_Timer := time.NewTimer(5*time.Second)
 	Fulfill_Timer.Stop()
 
-
-
+for {
 	select {
-		case newLocalOrder := <- btnPressChan:
-			if newLocalOrder.Button == Btn_Cab {
-				elevatorList[id].Queue[newLocalOrder.Floor][Btn_Cab] = true //byttet Button med Floor
-				lightUpdaterChan <- elevatorList
-				go func() { newOrderChan <- newLocalOrder }()
-			} else {
-				
-			}
+	case newOrder := <- btnPressChan:
+		newOrder.Status = Uncomfirmed
+		
 
-
-		switch newLocalOrder.Status{
-		case Empty:
-		case Unconfirmed:
-		case Confirmed 
+				switch newOrder.Status{
+				case Finished:
+				case Empty:
+				case Unconfirmed:
+				case Confirmed
 		}
 
-		case newNetworkOrder := <- SomeNetworkChan 
+		case newNetworkOrder := <- SomeNetworkChan
 
 
 
 
 	}
+}
+
 }

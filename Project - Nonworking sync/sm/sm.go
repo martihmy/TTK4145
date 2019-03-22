@@ -45,7 +45,7 @@ func ElevatorRun(ch SMChannels, initialFloor int, id int) {
 					elevator.State = DoorOpen
 					hw.SetDoorOpenLamp(true)
 					doorOpenTimer.Reset(3*time.Second)
-					go func() {ch.ServicedFloor <- newOrder.Floor}() //-- Send message to governor on OrderComplete channal and ask to turn of all lights for that floor. 
+					go func() {ch.ServicedFloor <- newOrder.Floor}() //-- Send message to governor on OrderComplete channal and ask to turn of all lights for that floor.
 				} else {
 					elevator.State = Moving
 				}
@@ -54,7 +54,11 @@ func ElevatorRun(ch SMChannels, initialFloor int, id int) {
 
 			case DoorOpen:
 				if elevator.Floor == newOrder.Floor {
-					ch.OrderFulfilled <- newOrder
+
+					//ch.OrderFulfilled <- newOrder
+					timerMsg := TimerMsg{newOrder.OrderID, false, false, true}
+					ch.SendTimerMsg<- timerMsg
+
 					doorOpenTimer.Reset(3*time.Second)
 					go func() {ch.ServicedFloor <- newOrder.Floor}() // Send message to governor on OrderComplete channal and ask to turn of all lights for that floor.
 

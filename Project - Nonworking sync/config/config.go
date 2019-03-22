@@ -28,6 +28,7 @@ const (
 	Unconfirmed OrderStatus = iota -1
 	Empty
 	Confirmed
+	Finished
 )
 
 type ButtonEvent struct {
@@ -35,6 +36,15 @@ type ButtonEvent struct {
 	Button ButtonType
 	DesignatedID int
 	OrderID int
+}
+
+//Only a tryout:
+type ButtonPress struct {
+	Floor int
+	Button ButtonType
+	DesignatedID int
+	OrderID int
+	Status OrderStatus
 }
 
 type ElevState int
@@ -51,7 +61,7 @@ type Elevator struct {
 	Dir MotorDirection
 	Floor int
 	Queue[NumFloors][NumButtons]bool
-	ID int //May have to be moved to some other struct 
+	ID int //May have to be moved to some other struct
 }
 
 
@@ -62,6 +72,8 @@ type OrderMsg struct {
 }
 
 type TimerMsg struct {
-	OrderCopy ButtonEvent
+	orderID 					int
+	OrderAck					bool
+	StartFulfillTimer	bool
+	Fulfilled					bool
 }
-
