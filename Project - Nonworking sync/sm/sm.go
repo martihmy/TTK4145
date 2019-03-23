@@ -64,7 +64,7 @@ func ElevatorRun(ch SMChannels, initialFloor int, id int, sendTimerMsgChan chan 
 
 				}
 			}
-			//ch.Elevator <- elevator //to update when change in state
+			ch.Elevator <- elevator //to update when change in state
 
 		case elevator.Floor = <- ch.FloorArrival:
 			if shouldStop(elevator) {
@@ -76,7 +76,7 @@ func ElevatorRun(ch SMChannels, initialFloor int, id int, sendTimerMsgChan chan 
 
 				go func() {ch.ServicedFloor <- elevator.Floor}() //-- Send message to governor on OrderComplete channal and ask to turn of lights
 			}
-			//ch.Elevator <- elevator
+			ch.Elevator <- elevator
 
 		case <- doorOpenTimer.C:
 			hw.SetDoorOpenLamp(false)
@@ -87,7 +87,7 @@ func ElevatorRun(ch SMChannels, initialFloor int, id int, sendTimerMsgChan chan 
 				elevator.State = Moving
 				hw.SetMotorDirection(elevator.Dir)
 			}
-			//ch.Elevator <- elevator //to update when change in state
+			ch.Elevator <- elevator //to update when change in state
 		}
 	}
 

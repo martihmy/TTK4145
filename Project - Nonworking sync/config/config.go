@@ -2,7 +2,7 @@ package config
 
 const (
 	NumFloors    = 4
-	NumElevators = 1
+	NumElevators = 3
 	NumButtons   = 3
 )
 
