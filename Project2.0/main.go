@@ -9,7 +9,8 @@ import (. "./config"
 	"flag"
 	"strconv"
 	sync "./elevSync"
-	//bcast "./network/bcast"
+	bcast "./network/bcast"
+	peers "./network/peers"
 
 )
 
@@ -36,6 +37,12 @@ func main() {
 	syncChans := sync.SyncChannels {
 		OrderUpdate: make(chan ButtonEvent),
 		UpdateOrderHandler:	make(chan [NumElevators]Elevator),
+		TransmitEnable: make(chan bool),
+		PeerUpdateChan: make(chan peers.PeerUpdate),
+		SyncUpdate: make(chan Elevator),
+		UpdateGovOnlineList: make(chan [NumElevators]bool),
+		IncomingUpdateMsg: make(chan Msg),
+		OutgoingUpdateMsg: make(chan Msg),
 	}
 
 
@@ -52,15 +59,16 @@ func main() {
 	go hw.PollFloorSensor(smChans.FloorArrival)
 	initFloor := hw.InitElev(smChans.FloorArrival)
 	go hw.PollButtons(btnPressChan)
-	go gov.OrderHandler(ID, btnPressChan, smChans.NewOrder, lightUpdaterChan, smChans.Elevator, smChans.ServicedFloor, syncChans.UpdateOrderHandler, syncChans.OrderUpdate)
+	go gov.OrderHandler(ID, btnPressChan, smChans.NewOrder, lightUpdaterChan, smChans.Elevator, smChans.ServicedFloor, syncChans.UpdateOrderHandler, syncChans.OrderUpdate, syncChans.SyncUpdate, syncChans.UpdateGovOnlineList)
 	go gov.LightUpdater(lightUpdaterChan,ID)
 	go sm.ElevatorRun(smChans, initFloor,ID)
 	go sync.ElevatorSynchronizer(syncChans, ID, smChans.NewOrder)
 
 	//Must handle if an elevator goes down and reinitialized with a zero queue (so it copies its queue from someone else)
+	go peers.Transmitter(20344,id,syncChans.TransmitEnable)
+	go peers.Receiver(20344, syncChans.PeerUpdateChan)
 
-
-	/*go bcast.Transmitter(43034, syncChans.OutgoingOrder, syncChans.OutgoingUpdateMsg, syncChans.SendTimerMsg)
-	go bcast.Receiver(43034, syncChans.IncomingOrder, syncChans.IncomingUpdateMsg, syncChans.ReceiveTimerMsg)*/
+	go bcast.Transmitter(43034, syncChans.OutgoingUpdateMsg)
+	go bcast.Receiver(43034, syncChans.IncomingUpdateMsg)
 	select {}
 }

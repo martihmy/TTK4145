@@ -2,7 +2,7 @@ package config
 
 const (
 	NumFloors    = 4
-	NumElevators = 1
+	NumElevators = 3
 	NumButtons   = 3
 )
 
@@ -22,14 +22,6 @@ const (
 	Dir_Stop                = 0
 )
 
-type OrderStatus int
-
-const (
-	Unconfirmed OrderStatus = iota -1
-	Empty
-	Confirmed
-	Finished
-)
 
 type ButtonEvent struct {
 	Floor  int
@@ -65,12 +57,18 @@ const(
 	Ack = 1				//Acked
 )
 
-type AcknowledgeStatus struct{ //AckList
+
+type OrderStatus struct{
+	Done bool
+	Acked bool
+}
+
+type OrderInfo struct{ //AckList
 	DesignatedID int //DesignatedElevator
-	Ack 	[NumElevators]Acknowledge //ImplicitAcks
+	StatusList 	[NumElevators]OrderStatus //ImplicitAcks
 }
 type Msg struct {
-	Elevators	[NumElevators]Elevator //Elevator
-	OrderStatus	[NumFloors][NumButtons-1]AcknowledgeStatus //RegisteredOrders
-	ID 	int 
+	ElevatorList [NumElevators]Elevator //Elevator
+	StatusMatrix	[NumFloors][NumButtons-1]OrderInfo //RegisteredOrders
+	SenderID 	int
 }

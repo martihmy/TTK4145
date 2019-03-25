@@ -9,7 +9,8 @@ import (. "../config"
 
 
 func OrderHandler(id int, btnPressChan chan ButtonEvent, newOrderChan chan ButtonEvent, lightUpdaterChan chan [NumElevators]Elevator,
-	elevatorChan chan Elevator, servicedFloorChan chan int, updateOrderHandlerChan chan [NumElevators]Elevator, orderUpdateChan chan ButtonEvent){
+	elevatorChan chan Elevator, servicedFloorChan chan int, updateFromSync chan [NumElevators]Elevator, orderUpdateChan chan ButtonEvent, syncUpdateChan chan Elevator,
+	updateGovOnlineListChan chan [NumElevators]bool){
 
 	var(
 		elevatorList [NumElevators]Elevator
@@ -18,11 +19,11 @@ func OrderHandler(id int, btnPressChan chan ButtonEvent, newOrderChan chan Butto
 	)
 	elevatorList[id] = <- elevatorChan
 	//onlineElevators[id] = true
-	//syncUpdateChan <- elevatorList[id] //assures that all elevators in continously updated on direction, floor, orders and states
+	syncUpdateChan <- elevatorList[id] //assures that all elevators in continously updated on direction, floor, orders and states
 
 	for {
 		select {
-		case updateOnSyncList := <- updateOrderHandlerChan: //Some update has occurred in sync so the updated elevatorList is sent here
+		case updateOnSyncList := <- updateFromSync: //Some update has occurred in sync so the updated elevatorList is sent here
 			aNewOrder := false
 			for elev:=0; elev < NumElevators; elev++ {
 				if elev == id {								//Only check updates on other elevators
@@ -52,15 +53,18 @@ func OrderHandler(id int, btnPressChan chan ButtonEvent, newOrderChan chan Butto
 			temp := elevatorList[id].Queue 						//Do we need to check for undefined state?
 			elevatorList[id] = updateOnLocalElev
 			elevatorList[id].Queue = temp
-			/*if onlineElevators[id] {
+			if onlineElevators[id] {
 				syncUpdateChan <- elevatorList[id]
-			}*/
+			}
 
-			/*
-		case owerwriteMyOlineList := <-onlineElevatorsCh:
-			onlineElevators = owerwriteMyOnlineList
 
-		*/
+		case updateMyOnlineList := <- updateGovOnlineListChan:
+			onlineElevators = updateMyOnlineList
+			for i := 0; i<NumElevators;i++ {
+				fmt.Println("OrderHandler has registered that elevator:",i,"is",onlineElevators[i])
+			}
+
+
 		case newLocalOrder := <- btnPressChan:
 			if !onlineElevators[id] {
 				elevatorList[id].Queue[newLocalOrder.Floor][newLocalOrder.Button] = true //byttet Button med Floor
@@ -86,7 +90,7 @@ func OrderHandler(id int, btnPressChan chan ButtonEvent, newOrderChan chan Butto
 				for elev := 0; elev < NumElevators;elev++{
 					if button != Btn_Cab || elev == id {
 
-						elevatorList[elev].Queue[servicedOrder.Floor][button] = false
+						elevatorList[elev].Queue[servicedOrder.Floor][button] = false //Kan vi bare fjerne for oss selv her?
 					}
 				}
 			}
