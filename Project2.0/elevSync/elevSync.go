@@ -19,6 +19,8 @@ type SyncChannels struct {
 	UpdateGovOnlineList chan [NumElevators]bool
 	IncomingUpdateMsg 	chan Msg
 	OutgoingUpdateMsg		chan Msg
+	Outgoingtest				chan int
+	Incomingtest				chan int
 }
 
 
@@ -47,8 +49,9 @@ func ElevatorSynchronizer(ch SyncChannels, id int, newOrderChan chan ButtonEvent
 				fmt.Println("Received order with finished")
 				elevatorList[id].Queue[newOrder.Floor] = [NumButtons]bool{}
 				if newOrder.Button != Btn_Cab {
-					localStatusMatrix[newOrder.Floor][newOrder.Button].StatusList[id].Acked = false
-					localStatusMatrix[newOrder.Floor][newOrder.Button].StatusList[id].Done = true
+					localStatusMatrix[newOrder.Floor][newOrder.Button].AckList[id] = 0
+					localStatusMatrix[newOrder.Floor][newOrder.Button].DoneList[id] = 1
+
 				}
 			} else if newOrder.Button == Btn_Cab && newOrder.DesignatedID == id {
 				elevatorList[id].Queue[newOrder.Floor][newOrder.Button] = true   //This update will be broadcasted on the standard msg each time the broadcaster ticker goes off
@@ -57,18 +60,20 @@ func ElevatorSynchronizer(ch SyncChannels, id int, newOrderChan chan ButtonEvent
 			} else {
 				fmt.Println("Recieved outside order with DesignatedID:", newOrder.DesignatedID, "which has been acked")
 				localStatusMatrix[newOrder.Floor][newOrder.Button].DesignatedID = newOrder.DesignatedID
-				localStatusMatrix[newOrder.Floor][newOrder.Button].StatusList[id].Acked = true
+				localStatusMatrix[newOrder.Floor][newOrder.Button].AckList[id] = 1
 			}
 
 
 
 		case newPeerUpdate := <- ch.PeerUpdateChan:
-			if len(newPeerUpdate.New) > 0 {
+			/*if len(newPeerUpdate.Peers) == 1 {
+				onlineElevators[id] = false
+			} else*/
+				if len(newPeerUpdate.New) > 0 {
 				idOfNewPeer,_ := strconv.Atoi(newPeerUpdate.New)
 				onlineElevators[idOfNewPeer] = true
 				fmt.Println("new peer has been discovered with id:",idOfNewPeer)
-			}
-			if len(newPeerUpdate.Lost) > 0 {
+				}else if len(newPeerUpdate.Lost) > 0 {
 					idOfLostPeer,_ := strconv.Atoi(newPeerUpdate.Lost[0]) //Only one elevator will loose connection
 					onlineElevators[idOfLostPeer] = false
 					fmt.Println("lost peer has been discovered with id:",idOfLostPeer)
@@ -87,48 +92,74 @@ func ElevatorSynchronizer(ch SyncChannels, id int, newOrderChan chan ButtonEvent
 			}
 
 		case <- BcastTicker.C:
-			message := Msg{ElevatorList: elevatorList, StatusMatrix: localStatusMatrix, SenderID: id}
+		//	message := Msg{ElevatorList: elevatorList, StatusMatrix: localStatusMatrix, SenderID: id}
+			var message Msg
+			message.ElevatorList = elevatorList
+			message.StatusMatrix = localStatusMatrix
+			message.SenderID = id
 			ch.OutgoingUpdateMsg <- message
-			fmt.Println("New broadcast message has been sent")
+
 
 
 		case message := <- ch.IncomingUpdateMsg:
-			fmt.Println("New message received")
-			if message.SenderID ==id{  //ignore messages that I broadcasted myself
-				continue
-			} else {
-					elevatorList[message.SenderID] = message.ElevatorList[message.SenderID]
-					for elev := 0; elev < NumElevators; elev++{
-						if elev == id { //sjekker andre heiser ack og Done Lister
+					if message.SenderID ==id{  //ignore messages that I broadcasted myself
 							continue
-						}
-						for btn := Btn_Up; btn < Btn_Cab; btn++ { //blar gjennom hele matrisen på deres indexer
-							for floor := 0; floor < NumFloors; floor++{
-								fmt.Println("Has arrived inside received msg and inside all three loops")
-								if allOnSamePage(floor,btn,true,false,false,onlineElevators,message) && message.StatusMatrix[floor][btn].DesignatedID==id{
-										fmt.Println("Recieved order for floor",floor,"button:",btn,"That has been acked by all elevators online")
-										elevatorList[id].Queue[floor][btn] = true
-										ch.UpdateOrderHandler <- elevatorList																								//Pass på at denne går til governor + lys
-									}																									// Jeg kan utøre ordren hvis alle har acket og det er jeg som skal ta den
-																																		// send til statemaskin og oppdater andre
-
-								if allOnSamePage(floor,btn,false,true,false, onlineElevators,message){
-									localStatusMatrix[floor][btn].StatusList[id].Done=false
+					} else {
+							elevatorList[message.SenderID] = message.ElevatorList[message.SenderID]
+							for elev := 0; elev < NumElevators; elev++{
+								if elev == id || !onlineElevators[elev] { //sjekker andre heiser ack og Done Lister
+									continue
 								}
+								for btn := Btn_Up; btn < Btn_Cab; btn++ { //blar gjennom hele matrisen på deres indexer
+									for floor := 0; floor < NumFloors; floor++{
+										fmt.Println("AckList for elevator:",elev,":",localStatusMatrix[floor][btn].AckList[elev])
+										fmt.Println("DoneList for elevator:",elev,":",localStatusMatrix[floor][btn].DoneList[elev])
+
+										if allOnSamePage(floor,btn,true,false,false,onlineElevators,message) && message.StatusMatrix[floor][btn].DesignatedID==id{
+												fmt.Println("Recieved order for floor",floor,"button:",btn,"That has been acked by all elevators online")
+												elevatorList[id].Queue[floor][btn] = true
+												ch.UpdateOrderHandler <- elevatorList																								//Pass på at denne går til governor + lys
+											}																									// Jeg kan utøre ordren hvis alle har acket og det er jeg som skal ta den
+																																				// send til statemaskin og oppdater andre
+
+										if allOnSamePage(floor,btn,false,true,false, onlineElevators,message){
+											localStatusMatrix[floor][btn].DoneList[id] = 0
 
 
-								if !allOnSamePage(floor,btn,false,true,false, onlineElevators,message) && message.StatusMatrix[floor][btn].StatusList[elev].Done{ //finner true i både ack og Done
-									localStatusMatrix[floor][btn].StatusList[id].Done = true //hvis vi finner vi en bestilling i vår oversikt som andre har meldt som "done", så melder vi den også som "done"
-									localStatusMatrix[floor][btn].StatusList[id].Acked = false
-								}
-								if allOnSamePage(floor,btn,false,false,true, onlineElevators,message) && message.StatusMatrix[floor][btn].StatusList[elev].Acked {
-									localStatusMatrix[floor][btn].StatusList[id].Acked = true
-									fmt.Println("New order recieved for floor",floor,"button:",btn,"and has beend acked by",id)
+											//localStatusMatrix[floor][btn].DoneList[elev] = 0
+
+
+										}
+
+
+										if message.StatusMatrix[floor][btn].DoneList[elev] == 1 && !allOnSamePage(floor,btn,false,true,false, onlineElevators,message) { //finner true i både ack og Done
+											fmt.Println("Found one 1 in a donelist and one in ack")
+											fmt.Println(message.StatusMatrix[floor][btn].AckList[id])
+											fmt.Println(message.StatusMatrix[floor][btn].DoneList[id])
+											fmt.Println(message.StatusMatrix[floor][btn].AckList[elev])
+											fmt.Println(message.StatusMatrix[floor][btn].DoneList[elev])
+											localStatusMatrix[floor][btn].DoneList[id] = 1 //hvis vi finner vi en bestilling i vår oversikt som andre har meldt som "done", så melder vi den også som "done"
+											localStatusMatrix[floor][btn].AckList[id] = 0
+											localStatusMatrix[floor][btn].DoneList[elev] = 1
+											localStatusMatrix[floor][btn].AckList[elev] = 0
+											fmt.Println("Change should have happend")
+											fmt.Println(localStatusMatrix[floor][btn].AckList[id])
+											fmt.Println(localStatusMatrix[floor][btn].DoneList[id])
+											fmt.Println(localStatusMatrix[floor][btn].AckList[elev])
+											fmt.Println(localStatusMatrix[floor][btn].DoneList[elev])
+
+										}
+										if allOnSamePage(floor,btn,false,false,true, onlineElevators,message) && message.StatusMatrix[floor][btn].AckList[elev] == 1 {
+											localStatusMatrix[floor][btn].AckList[id] = 1
+											localStatusMatrix[floor][btn].AckList[elev] = 1
+											localStatusMatrix[floor][btn].DesignatedID = message.StatusMatrix[floor][btn].DesignatedID
+											fmt.Println("New order recieved for floor",floor,"button:",btn,"and has beend acked by",id)
+										}
+									}
 								}
 							}
+							fmt.Println("------------------------")
 						}
-					}
-				}
 		}
 	}
 }

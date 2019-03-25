@@ -77,8 +77,8 @@ func ElevatorRun(ch SMChannels, initialFloor int, id int) {
 				hw.SetMotorDirection(Dir_Stop)
 				doorOpenTimer.Reset(3*time.Second)
 				elevator.Queue[elevator.Floor] = [NumButtons]bool{}
-
 				go func() {ch.ServicedFloor <- elevator.Floor}() //-- Send message to governor on OrderComplete channal and ask to turn of lights
+				fmt.Println("Floor:",elevator.Floor,"has been sent to orderHandler")
 			}
 			ch.Elevator <- elevator
 

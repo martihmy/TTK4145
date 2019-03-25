@@ -49,26 +49,16 @@ type Elevator struct {
 }
 
 
-type Acknowledge int
-
-const(
-	Done Acknowledge = -1 //Finished
-	NoAck = 0			//NotAcked
-	Ack = 1				//Acked
-)
 
 
-type OrderStatus struct{
-	Done bool
-	Acked bool
-}
 
-type OrderInfo struct{ //AckList
-	DesignatedID int //DesignatedElevator
-	StatusList 	[NumElevators]OrderStatus //ImplicitAcks
+type OrderInfo struct{
+	DesignatedID int
+	DoneList [NumElevators] int
+	AckList [NumElevators] int
 }
 type Msg struct {
-	ElevatorList [NumElevators]Elevator //Elevator
-	StatusMatrix	[NumFloors][NumButtons-1]OrderInfo //RegisteredOrders
+	ElevatorList [NumElevators]Elevator
+	StatusMatrix	[NumFloors][NumButtons-1]OrderInfo
 	SenderID 	int
 }

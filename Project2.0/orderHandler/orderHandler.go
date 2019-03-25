@@ -83,6 +83,7 @@ func OrderHandler(id int, btnPressChan chan ButtonEvent, newOrderChan chan Butto
 
 		case servicedOrder.Floor = <- servicedFloorChan:
 			servicedOrder.Finished = true
+			fmt.Println("Received serviced order in orderHandler")
 			for button := Btn_Up; button < NumButtons; button++{
 				if elevatorList[id].Queue[servicedOrder.Floor][button] {
 					servicedOrder.Button = button
@@ -94,6 +95,7 @@ func OrderHandler(id int, btnPressChan chan ButtonEvent, newOrderChan chan Butto
 					}
 				}
 			}
+			fmt.Println("If the elevator is online order on floor:",servicedOrder.Floor, "for btn:",servicedOrder.Button,"Should be sent to orderupdate")
 			if onlineElevators[id] {
 				orderUpdateChan <- servicedOrder
 			}

@@ -43,6 +43,9 @@ func main() {
 		UpdateGovOnlineList: make(chan [NumElevators]bool),
 		IncomingUpdateMsg: make(chan Msg),
 		OutgoingUpdateMsg: make(chan Msg),
+
+		Outgoingtest: make(chan int),
+		Incomingtest: make(chan int),
 	}
 
 
@@ -68,7 +71,7 @@ func main() {
 	go peers.Transmitter(20344,id,syncChans.TransmitEnable)
 	go peers.Receiver(20344, syncChans.PeerUpdateChan)
 
-	go bcast.Transmitter(43034, syncChans.OutgoingUpdateMsg)
-	go bcast.Receiver(43034, syncChans.IncomingUpdateMsg)
+	go bcast.Transmitter(43034, syncChans.Outgoingtest, syncChans.OutgoingUpdateMsg)
+	go bcast.Receiver(43034, syncChans.Incomingtest, syncChans.IncomingUpdateMsg)
 	select {}
 }
