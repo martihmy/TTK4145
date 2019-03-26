@@ -18,7 +18,6 @@ func OrderHandler(id int, btnPressChan chan ButtonEvent, newOrderChan chan Butto
 		onlineElevators [NumElevators]bool
 	)
 	elevatorList[id] = <- elevatorChan
-	//onlineElevators[id] = true
 	syncUpdateChan <- elevatorList[id] //assures that all elevators in continously updated on direction, floor, orders and states
 
 	for {
@@ -95,8 +94,11 @@ func OrderHandler(id int, btnPressChan chan ButtonEvent, newOrderChan chan Butto
 					}
 				}
 			}
-			fmt.Println("If the elevator is online order on floor:",servicedOrder.Floor, "for btn:",servicedOrder.Button,"Should be sent to orderupdate")
+
 			if onlineElevators[id] {
+				fmt.Println("the elevator is online order on floor:",servicedOrder.Floor, "for btn:",servicedOrder.Button,"Should be sent to orderupdate")
+				orderUpdateChan <- servicedOrder
+			} else {
 				orderUpdateChan <- servicedOrder
 			}
 			lightUpdaterChan <- elevatorList //Update lights, assumes that the servicedOrder sent to sync has managed to update the other elevators
@@ -104,7 +106,7 @@ func OrderHandler(id int, btnPressChan chan ButtonEvent, newOrderChan chan Butto
 	}
 }
 
-func LightUpdater (lightUpdaterChan <- chan [NumElevators]Elevator, id int){
+func LightUpdater (lightUpdaterChan <-chan [NumElevators]Elevator, id int){
 	var orderPlaced [NumElevators]bool
 	for{
 		elevators := <- lightUpdaterChan
