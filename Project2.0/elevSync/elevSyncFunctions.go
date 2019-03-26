@@ -21,7 +21,7 @@ func allOnSamePage(floor int, btn ButtonType, AllAckTest bool, AllUnackTest bool
 		for elev:=0;elev<NumElevators;elev++{
 			if message.StatusMatrix[floor][btn].AckList[elev] == 1 && onlineElevators[elev]{
 				return false
-				
+
 			}
 		}
 
@@ -32,6 +32,16 @@ func allOnSamePage(floor int, btn ButtonType, AllAckTest bool, AllUnackTest bool
 
 			}
 		}
+	}
+	return true
+}
+
+func AllAckOnLocal(floor int, btn ButtonType, onlineElevators[NumElevators]bool, localMatrix [NumFloors][NumButtons-1]OrderInfo)bool{
+	for elev:=0;elev<NumElevators;elev++{
+			if localMatrix[floor][btn].AckList[elev] == 0 && onlineElevators[elev]{
+				return false
+
+			}
 	}
 	return true
 }
