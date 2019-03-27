@@ -2,7 +2,7 @@ package orderHandler
 
 import (. "../config"
 		hw "../hardware_io"
-		"fmt"
+		//"fmt"
 		//"time"
 		//sync "../elevSync"
 )

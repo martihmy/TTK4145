@@ -3,7 +3,7 @@ package sm
 import (
 	. "../config"
 	"time"
-	"fmt" //brukes bare til print osv
+	//"fmt" //brukes bare til print osv
 	hw "../hardware_io"
 )
 
