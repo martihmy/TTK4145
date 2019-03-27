@@ -29,8 +29,10 @@ func ElevatorSynchronizer(ch SyncChannels, id int, newOrderChan chan ButtonEvent
 		localStatusMatrix [NumFloors][NumButtons-1]OrderInfo
 		onlineElevators [NumElevators]bool
 		wasTrulyOffline bool
+		newlyDead [NumElevators]bool
 		//change bool
 	)
+	deadPeer := -1
 
 
 	timeer := make(chan bool)
@@ -46,7 +48,13 @@ func ElevatorSynchronizer(ch SyncChannels, id int, newOrderChan chan ButtonEvent
 
 	UpdategovTicker := time.NewTicker(250*time.Millisecond)
 	BcastTicker := time.NewTicker(200*time.Millisecond)
+	AssignNew := time.NewTimer(5*time.Second)
+	AssignNew.Stop()
 	for {
+		if deadPeer != -1 {
+			newlyDead[deadPeer] = true
+			deadPeer = -1
+		}
 		select{
 
 
@@ -99,9 +107,12 @@ func ElevatorSynchronizer(ch SyncChannels, id int, newOrderChan chan ButtonEvent
 				}
 				}
 			if len(newPeerUpdate.Lost) > 0 {
-				idOfLostPeer,_ := strconv.Atoi(newPeerUpdate.Lost[0]) //Only one elevator will loose connection
-				onlineElevators[idOfLostPeer] = false
-				fmt.Println("lost peer has been discovered with id:",idOfLostPeer)
+				deadPeer,_ := strconv.Atoi(newPeerUpdate.Lost[0]) //Only one elevator will loose connection
+				onlineElevators[deadPeer] = false
+				if !newlyDead[deadPeer] && elevatorList[deadPeer].Queue != [NumFloors][NumButtons]bool{} {
+					AssignNew.Reset(1*time.Second)
+				}
+				fmt.Println("lost peer has been discovered with id:",deadPeer)
 			}
 			//how do we detect that we are offline?
 
@@ -131,6 +142,22 @@ func ElevatorSynchronizer(ch SyncChannels, id int, newOrderChan chan ButtonEvent
 		case <- UpdategovTicker.C:
 			ch.UpdateOrderHandler <- elevatorList
 
+		case <- AssignNew.C:
+			for elev :=0; elev < NumElevators;elev++{
+				if !newlyDead[elev] {
+					continue
+				}
+				newlyDead[elev] = false
+				for floor:=0;floor<NumFloors;floor++{
+					for btn:=Btn_Up;btn<Btn_Cab;btn++ {
+						if elevatorList[elev].Queue[floor][btn] {
+							elevatorList[id].Queue[floor][btn] = true
+							elevatorList[elev].Queue[floor][btn] = false
+						}
+					}
+				}
+			}
+			ch.UpdateOrderHandler <- elevatorList
 
 
 		case message := <- ch.IncomingUpdateMsg:
@@ -152,7 +179,7 @@ func ElevatorSynchronizer(ch SyncChannels, id int, newOrderChan chan ButtonEvent
 										//	fmt.Println(message.StatusMatrix[floor][btn].AckList[id])
 										//	fmt.Println(message.StatusMatrix[floor][btn].DoneList[id])
 
-										if allOnSamePage(floor,btn,true,false,false,onlineElevators,message) && message.StatusMatrix[floor][btn].DesignatedID==id && localStatusMatrix[floor][btn].DoneList[id] != 1{
+										if allOnSamePage(floor,btn,true,false,false,onlineElevators,message) && localStatusMatrix[floor][btn].DesignatedID==id && localStatusMatrix[floor][btn].DoneList[id] != 1{
 											//	fmt.Println("Recieved order for floor",floor,"button:",btn,"That has been acked by all elevators online")
 												localStatusMatrix[floor][btn].AckList[id] = 1
 												elevatorList[id].Queue[floor][btn] = true
