@@ -62,23 +62,23 @@ func ElevatorRun(ch SMChannels, initialFloor int, id int) {
 			case Undefined:
 
 			default:
-				fmt.Println("Some error has occurred")
+				//fmt.Println("Some error has occurred")
 
 			}
 
 			ch.Elevator <- elevator //to update when change in state
 
 		case elevator.Floor = <- ch.FloorArrival:
-			fmt.Println("Arrived at floor:",elevator.Floor)
+			//fmt.Println("Arrived at floor:",elevator.Floor)
 			if shouldStop(elevator) {
-				fmt.Println("Should stop")
+		//		fmt.Println("Should stop")
 				hw.SetDoorOpenLamp(true)
 				elevator.State = DoorOpen
 				hw.SetMotorDirection(Dir_Stop)
 				doorOpenTimer.Reset(3*time.Second)
 				elevator.Queue[elevator.Floor] = [NumButtons]bool{}
 				go func() {ch.ServicedFloor <- elevator.Floor}() //-- Send message to governor on OrderComplete channal and ask to turn of lights
-				fmt.Println("Floor:",elevator.Floor,"has been sent to orderHandler")
+			//	fmt.Println("Floor:",elevator.Floor,"has been sent to orderHandler")
 			}
 			ch.Elevator <- elevator
 

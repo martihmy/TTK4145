@@ -60,21 +60,21 @@ func OrderHandler(id int, btnPressChan chan ButtonEvent, newOrderChan chan Butto
 		case updateMyOnlineList := <- updateGovOnlineListChan:
 			onlineElevators = updateMyOnlineList
 			for i := 0; i<NumElevators;i++ {
-				fmt.Println("OrderHandler has registered that elevator:",i,"is",onlineElevators[i])
+			//	fmt.Println("OrderHandler has registered that elevator:",i,"is",onlineElevators[i])
 			}
 
 
 		case newLocalOrder := <- btnPressChan:
 			if !onlineElevators[id] {
 				elevatorList[id].Queue[newLocalOrder.Floor][newLocalOrder.Button] = true //byttet Button med Floor
-				fmt.Println("New local call for for floor", newLocalOrder.Floor,"at Elevator:",id)
+			//	fmt.Println("New local call for for floor", newLocalOrder.Floor,"at Elevator:",id)
 				lightUpdaterChan <- elevatorList
 				go func() { newOrderChan <- newLocalOrder }()
 
 			} else {
 				if !orderAlreadyInQueue(newLocalOrder, elevatorList, id) {
 					newLocalOrder.DesignatedID = costCalculation(newLocalOrder, elevatorList,id,onlineElevators)
-					fmt.Println("Best elevator for order is:",newLocalOrder.DesignatedID)
+				//	fmt.Println("Best elevator for order is:",newLocalOrder.DesignatedID)
 					orderUpdateChan <- newLocalOrder
 				}
 			}
@@ -82,7 +82,7 @@ func OrderHandler(id int, btnPressChan chan ButtonEvent, newOrderChan chan Butto
 
 		case servicedOrder.Floor = <- servicedFloorChan:
 			servicedOrder.Finished = true
-			fmt.Println("Received serviced order in orderHandler")
+			//fmt.Println("Received serviced order in orderHandler")
 			for button := Btn_Up; button < NumButtons; button++{
 				if elevatorList[id].Queue[servicedOrder.Floor][button] {
 					servicedOrder.Button = button
@@ -96,7 +96,7 @@ func OrderHandler(id int, btnPressChan chan ButtonEvent, newOrderChan chan Butto
 			}
 
 			if onlineElevators[id] {
-				fmt.Println("the elevator is online order on floor:",servicedOrder.Floor, "for btn:",servicedOrder.Button,"Should be sent to orderupdate")
+			//	fmt.Println("the elevator is online order on floor:",servicedOrder.Floor, "for btn:",servicedOrder.Button,"Should be sent to orderupdate")
 				orderUpdateChan <- servicedOrder
 			} else {
 				orderUpdateChan <- servicedOrder
