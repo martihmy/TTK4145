@@ -1,8 +1,0 @@
-package elevSync
-
-import (
-	"fmt"
-	"time"
-	. "./config"
-	
-)
