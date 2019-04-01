@@ -13,43 +13,43 @@ func costCalculation (order ButtonEvent, elevatorList [NumElevators]Elevator, id
 		if !onlineElevators[elev] {
 			continue
 		}
-		if elevatorList[elev].Dir == Dir_Stop && order.Floor == elevatorList[elev].Floor { //Standing still and order is at the same floor
+		if elevatorList[elev].Dir == Dir_Stop && order.Floor == elevatorList[elev].Floor {
 			return elev
 
 
 
-		}else if elevatorList[elev].Dir ==  Dir_Up && order.Floor > elevatorList[elev].Floor{ //You are going up and the order is above you
-			if order.Button == Btn_Up { // + They want to go in the same direction as you are already going
-				cost = order.Floor - elevatorList[elev].Floor 
-			}else{						// but... They do not want to go in the same direction
-				cost = order.Floor - elevatorList[elev].Floor + 2 
+		}else if elevatorList[elev].Dir ==  Dir_Up && order.Floor > elevatorList[elev].Floor{
+			if order.Button == Btn_Up {
+				cost = order.Floor - elevatorList[elev].Floor
+			}else{
+				cost = order.Floor - elevatorList[elev].Floor + 2
 			}
 
 
-		}else if elevatorList[elev].Dir ==  Dir_Down && order.Floor < elevatorList[elev].Floor{ //You are going down and the order is below you
+		}else if elevatorList[elev].Dir ==  Dir_Down && order.Floor < elevatorList[elev].Floor{
 
 			if order.Button == Btn_Down {
-				cost = elevatorList[elev].Floor - order.Floor // + They want to go in the same direction as you are already going
+				cost = elevatorList[elev].Floor - order.Floor
 			}else{
-				cost = elevatorList[elev].Floor - order.Floor + 2// but... They do not want to go in the same direction
+				cost = elevatorList[elev].Floor - order.Floor + 2
 			}
 
-		}else if elevatorList[elev].Dir ==  Dir_Stop && order.Floor > elevatorList[elev].Floor{ //You are standing still and the order is above you
+		}else if elevatorList[elev].Dir ==  Dir_Stop && order.Floor > elevatorList[elev].Floor{
 			cost = order.Floor - elevatorList[elev].Floor +1
 
-		}else if elevatorList[elev].Dir ==  Dir_Stop && order.Floor < elevatorList[elev].Floor{ //You are standing still and the order is below you
+		}else if elevatorList[elev].Dir ==  Dir_Stop && order.Floor < elevatorList[elev].Floor{
 			cost = elevatorList[elev].Floor - order.Floor +1
 
-		}else if elevatorList[elev].Dir ==  Dir_Down && order.Floor > elevatorList[elev].Floor{ //You are going down and the order is above you
+		}else if elevatorList[elev].Dir ==  Dir_Down && order.Floor > elevatorList[elev].Floor{
 			cost = order.Floor - elevatorList[elev].Floor +3
 
-		}else if elevatorList[elev].Dir ==  Dir_Up && order.Floor < elevatorList[elev].Floor{ //You are going up and the order is below you
+		}else if elevatorList[elev].Dir ==  Dir_Up && order.Floor < elevatorList[elev].Floor{
 			cost = elevatorList[elev].Floor - order.Floor +3
 		}
 
 		if cost < cheapest{
 			cheapest = cost
-			bestElevator = 	elev //id (0,1 or 2) of the elevator with the lowest cost
+			bestElevator = 	elev 
 		}
 	}
 	return bestElevator
@@ -60,7 +60,7 @@ func orderAlreadyInQueue(order ButtonEvent, elevatorList [NumElevators]Elevator,
 		return true
 	} else {
 		for elev := 0; elev < NumElevators; elev++{
-			if elevatorList[elev].Queue[order.Floor][order.Button]{
+			if elevatorList[elev].Queue[order.Floor][order.Button] && order.Button != Btn_Cab{
 				return true
 			}
 		}

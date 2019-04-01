@@ -15,7 +15,7 @@ type SyncChannels struct {
 	PeerUpdateChan				chan peers.PeerUpdate
 	TransmitEnable 				chan bool
 	SyncUpdate 					chan Elevator
-	UpdateGovOnlineList			chan [NumElevators]bool
+	UpdateOrderOnlineList			chan [NumElevators]bool
 	IncomingUpdateMsg 			chan Msg
 	OutgoingUpdateMsg			chan Msg
 }
@@ -38,12 +38,11 @@ func ElevatorSynchronizer(ch SyncChannels, id int, newOrderChan chan ButtonEvent
 
 	case init := <- ch.IncomingUpdateMsg:
 		elevatorList = init.ElevatorList
-		fmt.Println("Should have initilized our own queue from other elevs")
 	case <- timeer:
 		fmt.Println("ReinitTimer timed out")
 	}
 
-	UpdategovTicker := time.NewTicker(250*time.Millisecond) //Triggers update-message to governor every 250 millisecond
+	UpdateOrderTicker := time.NewTicker(250*time.Millisecond) //Triggers update-message to orderHandler every 250 millisecond
 	BcastTicker := time.NewTicker(200*time.Millisecond)     //Triggers update-message to other elevators every 200 millisecond
 
 	for {
@@ -52,7 +51,6 @@ func ElevatorSynchronizer(ch SyncChannels, id int, newOrderChan chan ButtonEvent
 
 		case newOrder := <- ch.OrderUpdate:
 			if newOrder.Finished {
-				fmt.Println("Some order has been fulfilled")
 				elevatorList[id].Queue[newOrder.Floor] = [NumButtons]bool{}
 				if newOrder.Button != Btn_Cab {
 					localStatusMatrix[newOrder.Floor][newOrder.Button].AckList[id] = 0
@@ -60,11 +58,9 @@ func ElevatorSynchronizer(ch SyncChannels, id int, newOrderChan chan ButtonEvent
 
 				}
 			} else if newOrder.Button == Btn_Cab && newOrder.DesignatedID == id {
-				elevatorList[id].Queue[newOrder.Floor][newOrder.Button] = true 
-				fmt.Println("Received order for local cab call")
-				ch.UpdateOrderHandler <- elevatorList 
+				elevatorList[id].Queue[newOrder.Floor][newOrder.Button] = true
+				ch.UpdateOrderHandler <- elevatorList
 			} else {
-				fmt.Println("Recieved outside order with DesignatedID:", newOrder.DesignatedID, "which has been acked")
 				localStatusMatrix[newOrder.Floor][newOrder.Button].DesignatedID = newOrder.DesignatedID
 				localStatusMatrix[newOrder.Floor][newOrder.Button].AckList[id] = 1
 			}
@@ -73,7 +69,6 @@ func ElevatorSynchronizer(ch SyncChannels, id int, newOrderChan chan ButtonEvent
 
 		case newPeerUpdate := <- ch.PeerUpdateChan:
 			if len(newPeerUpdate.Peers) <= 1  {
-				fmt.Println("We went offline")
 				onlineElevators[id] = false
 				if len(newPeerUpdate.Peers) == 0 {
 					wasTrulyOffline = true
@@ -85,7 +80,7 @@ func ElevatorSynchronizer(ch SyncChannels, id int, newOrderChan chan ButtonEvent
 						for btn:=Btn_Up;btn<Btn_Cab;btn++{
 							for elev:=0;elev<NumElevators;elev++ {
 								localStatusMatrix[floor][btn].AckList[elev] = 0  //reset Acknowledge- and DoneList if the elevator lose connection
-								localStatusMatrix[floor][btn].DoneList[elev] = 0 //...
+								localStatusMatrix[floor][btn].DoneList[elev] = 0
 							}
 						}
 					}
@@ -95,17 +90,14 @@ func ElevatorSynchronizer(ch SyncChannels, id int, newOrderChan chan ButtonEvent
 				if idOfNewPeer != id {
 					onlineElevators[idOfNewPeer] = true
 					onlineElevators[id] = true
-					fmt.Println("new peer has been discovered with id:",idOfNewPeer)
 				}
 				}
 			if len(newPeerUpdate.Lost) > 0 {
 				deadPeer,_ := strconv.Atoi(newPeerUpdate.Lost[0]) //Only one elevator will loose connection
 				onlineElevators[deadPeer] = false
-
-				fmt.Println("lost peer has been discovered with id:",deadPeer)
 			}
 
-			go func(){ch.UpdateGovOnlineList <- onlineElevators} ()
+			go func(){ch.UpdateOrderOnlineList <- onlineElevators} ()
 
 
 		case updateOnLocalElev := <- ch.SyncUpdate:
@@ -114,7 +106,7 @@ func ElevatorSynchronizer(ch SyncChannels, id int, newOrderChan chan ButtonEvent
 				elevatorList[id] = updateOnLocalElev
 				elevatorList[id].Queue = tempQueue
 				ch.TransmitEnable <- true
-				//Distribute change to other elevators
+
 
 			} else {
 				ch.TransmitEnable <- false
@@ -128,7 +120,7 @@ func ElevatorSynchronizer(ch SyncChannels, id int, newOrderChan chan ButtonEvent
 			message.SenderID = id
 			ch.OutgoingUpdateMsg <- message
 
-		case <- UpdategovTicker.C:
+		case <- UpdateOrderTicker.C:
 			ch.UpdateOrderHandler <- elevatorList
 
 
@@ -138,7 +130,7 @@ func ElevatorSynchronizer(ch SyncChannels, id int, newOrderChan chan ButtonEvent
 					} else {
 							elevatorList[message.SenderID] = message.ElevatorList[message.SenderID]
 							for elev := 0; elev < NumElevators; elev++{
-								if elev == id || !onlineElevators[elev] { //We only care about acknowledgement from other elevators that are online
+								if elev == id || !onlineElevators[elev] {
 									continue
 								}
 								for btn := Btn_Up; btn < Btn_Cab; btn++ {
@@ -150,7 +142,7 @@ func ElevatorSynchronizer(ch SyncChannels, id int, newOrderChan chan ButtonEvent
 											localStatusMatrix[floor][btn].AckList[id] = 1
 											elevatorList[id].Queue[floor][btn] = true
 											ch.UpdateOrderHandler <- elevatorList
-										
+
 										}else if allOnSamePage(floor,btn,false,true,false, onlineElevators,message) && localStatusMatrix[floor][btn].AckList[id] != 1 && localStatusMatrix[floor][btn].AckList[message.SenderID] != 1 {
 											//Reset DoneList to make sure that we are ready to ackowledge a new order on that floor for that specific button type
 											localStatusMatrix[floor][btn].DoneList[id] = 0
@@ -163,9 +155,9 @@ func ElevatorSynchronizer(ch SyncChannels, id int, newOrderChan chan ButtonEvent
 											localStatusMatrix[floor][btn].AckList[id] = 0
 											localStatusMatrix[floor][btn].DoneList[message.SenderID] = 1
 											localStatusMatrix[floor][btn].AckList[message.SenderID] = 0
-							
+
 										}else if allOnSamePage(floor,btn,false,false,true, onlineElevators,message) && message.StatusMatrix[floor][btn].AckList[elev] == 1 && localStatusMatrix[floor][btn].DoneList[id] == 0 && !AllAckOnLocal(floor, btn, onlineElevators, localStatusMatrix) {
-											//Some other elevator has ackowledged an order that I have not. I will Ackowledge it myself 
+											//Some other elevator has ackowledged an order that I have not. I will Ackowledge it myself
 											localStatusMatrix[floor][btn].AckList[id] = 1
 											localStatusMatrix[floor][btn].AckList[message.SenderID] = 1
 											localStatusMatrix[floor][btn].DesignatedID = message.StatusMatrix[floor][btn].DesignatedID

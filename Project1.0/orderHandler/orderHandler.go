@@ -2,13 +2,13 @@ package orderHandler
 
 import (. "../config"
 		hw "../hardware_io"
-		"fmt"
+
 )
 
 
 func OrderHandler(id int, btnPressChan chan ButtonEvent, newOrderChan chan ButtonEvent, lightUpdaterChan chan [NumElevators]Elevator,
 	elevatorChan chan Elevator, servicedFloorChan chan int, updateFromSync chan [NumElevators]Elevator, orderUpdateChan chan ButtonEvent, syncUpdateChan chan Elevator,
-	updateGovOnlineListChan chan [NumElevators]bool){
+	updateOrderOnlineListChan chan [NumElevators]bool){
 
 	var(
 		elevatorList [NumElevators]Elevator
@@ -16,24 +16,24 @@ func OrderHandler(id int, btnPressChan chan ButtonEvent, newOrderChan chan Butto
 		onlineElevators [NumElevators]bool
 	)
 	elevatorList[id] = <- elevatorChan
-	syncUpdateChan <- elevatorList[id] //assures that all elevators are continously updated on direction, floor, orders and states
+	syncUpdateChan <- elevatorList[id]
 
 	for {
 		select {
-		case updateOnSyncList := <- updateFromSync: //Some update has occurred in sync so the updated elevatorList is sent here
+		case updateOnSyncList := <- updateFromSync:
 			aNewOrder := false
 			for elev:=0; elev < NumElevators; elev++ {
-				if elev == id {								//Only check updates on other elevators
+				if elev == id {
 					continue
 				}
-				if elevatorList[elev].Queue != updateOnSyncList[elev].Queue { //if the incoming elevatorList has a different Queue then it contains a new order
+				if elevatorList[elev].Queue != updateOnSyncList[elev].Queue {
 					aNewOrder = true
 				}
-				elevatorList[elev] = updateOnSyncList[elev] //Replace our information on other elevators with the new updated version
+				elevatorList[elev] = updateOnSyncList[elev]
 			}
 			for floor:=0; floor < NumFloors;floor++{
 				for button:=Btn_Up; button < NumButtons; button++{
-					if !elevatorList[id].Queue[floor][button] && updateOnSyncList[id].Queue[floor][button] { //Check if the new remote elevatorlist contains an order placed in our queue
+					if !elevatorList[id].Queue[floor][button] && updateOnSyncList[id].Queue[floor][button] {
 						elevatorList[id].Queue[floor][button] = true
 						aNewOrder = true
 						newOrder := ButtonEvent{floor,button,id,false}
@@ -46,7 +46,7 @@ func OrderHandler(id int, btnPressChan chan ButtonEvent, newOrderChan chan Butto
 			}
 
 		case updateOnLocalElev := <- elevatorChan:
-			temp := elevatorList[id].Queue 
+			temp := elevatorList[id].Queue
 			elevatorList[id] = updateOnLocalElev
 			elevatorList[id].Queue = temp
 			if onlineElevators[id] {
@@ -54,24 +54,21 @@ func OrderHandler(id int, btnPressChan chan ButtonEvent, newOrderChan chan Butto
 			}
 
 
-		case updateMyOnlineList := <- updateGovOnlineListChan:
+		case updateMyOnlineList := <- updateOrderOnlineListChan:
 			onlineElevators = updateMyOnlineList
 			for i := 0; i<NumElevators;i++ {
-				fmt.Println("OrderHandler has registered that elevator:",i,"is",onlineElevators[i])
 			}
 
 
 		case newLocalOrder := <- btnPressChan:
 			if !onlineElevators[id] {
-				elevatorList[id].Queue[newLocalOrder.Floor][newLocalOrder.Button] = true 
-				fmt.Println("New local call for for floor", newLocalOrder.Floor,"at Elevator:",id)
+				elevatorList[id].Queue[newLocalOrder.Floor][newLocalOrder.Button] = true
 				lightUpdaterChan <- elevatorList
 				go func() { newOrderChan <- newLocalOrder }()
 
 			} else {
 				if !orderAlreadyInQueue(newLocalOrder, elevatorList, id) {
 					newLocalOrder.DesignatedID = costCalculation(newLocalOrder, elevatorList,id,onlineElevators)
-					fmt.Println("Best elevator for order is:",newLocalOrder.DesignatedID)
 					orderUpdateChan <- newLocalOrder
 				}
 			}
@@ -79,7 +76,6 @@ func OrderHandler(id int, btnPressChan chan ButtonEvent, newOrderChan chan Butto
 
 		case servicedOrder.Floor = <- servicedFloorChan:
 			servicedOrder.Finished = true
-			fmt.Println("Received serviced order in orderHandler")
 			for button := Btn_Up; button < NumButtons; button++{
 				if elevatorList[id].Queue[servicedOrder.Floor][button] {
 					servicedOrder.Button = button
@@ -93,7 +89,6 @@ func OrderHandler(id int, btnPressChan chan ButtonEvent, newOrderChan chan Butto
 			}
 
 			if onlineElevators[id] {
-				fmt.Println("the elevator is online order on floor:",servicedOrder.Floor, "for btn:",servicedOrder.Button,"Should be sent to orderupdate")
 				orderUpdateChan <- servicedOrder
 			} else {
 				orderUpdateChan <- servicedOrder

@@ -39,7 +39,7 @@ func main() {
 		TransmitEnable: make(chan bool),
 		PeerUpdateChan: make(chan peers.PeerUpdate),
 		SyncUpdate: make(chan Elevator),
-		UpdateGovOnlineList: make(chan [NumElevators]bool),
+		UpdateOrderOnlineList: make(chan [NumElevators]bool),
 		IncomingUpdateMsg: make(chan Msg),
 		OutgoingUpdateMsg: make(chan Msg),
 
@@ -59,7 +59,7 @@ func main() {
 	go hw.PollFloorSensor(smChans.FloorArrival)
 	initFloor := hw.InitElev(smChans.FloorArrival)
 	go hw.PollButtons(btnPressChan)
-	go gov.OrderHandler(ID, btnPressChan, smChans.NewOrder, lightUpdaterChan, smChans.Elevator, smChans.ServicedFloor, syncChans.UpdateOrderHandler, syncChans.OrderUpdate, syncChans.SyncUpdate, syncChans.UpdateGovOnlineList)
+	go gov.OrderHandler(ID, btnPressChan, smChans.NewOrder, lightUpdaterChan, smChans.Elevator, smChans.ServicedFloor, syncChans.UpdateOrderHandler, syncChans.OrderUpdate, syncChans.SyncUpdate, syncChans.UpdateOrderOnlineList)
 	go gov.LightUpdater(lightUpdaterChan,ID)
 	go sm.ElevatorRun(smChans, initFloor,ID)
 	go sync.ElevatorSynchronizer(syncChans, ID, smChans.NewOrder)
