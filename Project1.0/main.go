@@ -1,7 +1,6 @@
 package main
 
 import (. "./config"
-//	"time"
 	"fmt"
 	hw "./hardware_io"
 	sm "./sm"
@@ -65,7 +64,6 @@ func main() {
 	go sm.ElevatorRun(smChans, initFloor,ID)
 	go sync.ElevatorSynchronizer(syncChans, ID, smChans.NewOrder)
 
-	//Must handle if an elevator goes down and reinitialized with a zero queue (so it copies its queue from someone else)
 	go peers.Transmitter(20344,id,syncChans.TransmitEnable)
 	go peers.Receiver(20344, syncChans.PeerUpdateChan)
 

@@ -2,7 +2,6 @@ package orderHandler
 import . "../config"
 
 func costCalculation (order ButtonEvent, elevatorList [NumElevators]Elevator, id int, onlineElevators[NumElevators]bool) int{
-	//Can consider to implement a check for buttoncab. should not be nessesary
 	cheapest := 1000
 	bestElevator := 0 //
 	if order.Button == Btn_Cab {
@@ -20,10 +19,10 @@ func costCalculation (order ButtonEvent, elevatorList [NumElevators]Elevator, id
 
 
 		}else if elevatorList[elev].Dir ==  Dir_Up && order.Floor > elevatorList[elev].Floor{ //You are going up and the order is above you
-			if order.Button == Btn_Up {
-				cost = order.Floor - elevatorList[elev].Floor //+ They want to go in the same direction as you are already going
-			}else{
-				cost = order.Floor - elevatorList[elev].Floor + 2 // They do not want to go in the same direction
+			if order.Button == Btn_Up { // + They want to go in the same direction as you are already going
+				cost = order.Floor - elevatorList[elev].Floor 
+			}else{						// but... They do not want to go in the same direction
+				cost = order.Floor - elevatorList[elev].Floor + 2 
 			}
 
 
@@ -32,7 +31,7 @@ func costCalculation (order ButtonEvent, elevatorList [NumElevators]Elevator, id
 			if order.Button == Btn_Down {
 				cost = elevatorList[elev].Floor - order.Floor // + They want to go in the same direction as you are already going
 			}else{
-				cost = elevatorList[elev].Floor - order.Floor + 2// They do not want to go in the same direction
+				cost = elevatorList[elev].Floor - order.Floor + 2// but... They do not want to go in the same direction
 			}
 
 		}else if elevatorList[elev].Dir ==  Dir_Stop && order.Floor > elevatorList[elev].Floor{ //You are standing still and the order is above you
@@ -50,13 +49,13 @@ func costCalculation (order ButtonEvent, elevatorList [NumElevators]Elevator, id
 
 		if cost < cheapest{
 			cheapest = cost
-			bestElevator = 	elev //number (0,1 or 2) of the elevator with the lowest cost
+			bestElevator = 	elev //id (0,1 or 2) of the elevator with the lowest cost
 		}
 	}
 	return bestElevator
 }
 
-func orderAlreadyInQueue(order ButtonEvent, elevatorList [NumElevators]Elevator, id int) bool{ // **************** Still not sure about the use of id
+func orderAlreadyInQueue(order ButtonEvent, elevatorList [NumElevators]Elevator, id int) bool{
 	if order.Button == Btn_Cab && elevatorList[id].Queue[order.Floor][Btn_Cab]{
 		return true
 	} else {

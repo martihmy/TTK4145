@@ -1,14 +1,8 @@
 package elevSync
 
-import (
-	//"fmt"
-	//"time"
-	. "../config"
-	//"math/rand"
-	//"fmt"
+import . "../config"
 
-)
-func allOnSamePage(floor int, btn ButtonType, AllAckTest bool, AllUnackTest bool, NoneDoneTest bool, onlineElevators[NumElevators]bool, message Msg)bool{ // er alle unfinished, er alle unacked, er alle acked??
+func allOnSamePage(floor int, btn ButtonType, AllAckTest bool, AllUnackTest bool, NoneDoneTest bool, onlineElevators[NumElevators]bool, message Msg)bool{
 	if AllAckTest{
 		for elev:=0;elev<NumElevators;elev++{
 			if message.StatusMatrix[floor][btn].AckList[elev] == 0 && onlineElevators[elev]{

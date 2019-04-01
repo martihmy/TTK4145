@@ -1,10 +1,12 @@
 package config
 
+
 const (
 	NumFloors    = 4
 	NumElevators = 3
 	NumButtons   = 3
 )
+
 
 type ButtonType int
 
@@ -13,6 +15,7 @@ const (
 	Btn_Down         	 	= 1
 	Btn_Cab             	= 2
 )
+
 
 type MotorDirection int
 
@@ -40,6 +43,7 @@ const (
 	DoorOpen
 )
 
+
 type Elevator struct {
 	State ElevState
 	Dir MotorDirection
@@ -49,14 +53,13 @@ type Elevator struct {
 }
 
 
-
-
-
 type OrderInfo struct{
 	DesignatedID int
 	DoneList [NumElevators] int
 	AckList [NumElevators] int
 }
+
+
 type Msg struct {
 	ElevatorList [NumElevators]Elevator
 	StatusMatrix	[NumFloors][NumButtons-1]OrderInfo

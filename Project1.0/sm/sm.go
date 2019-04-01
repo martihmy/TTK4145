@@ -3,7 +3,7 @@ package sm
 import (
 	. "../config"
 	"time"
-	"fmt" //brukes bare til print osv
+	"fmt"
 	hw "../hardware_io"
 )
 
@@ -19,10 +19,10 @@ type SMChannels struct {
 
 
 func ElevatorRun(ch SMChannels, initialFloor int, id int) {
-	elevator := Elevator{ //Initialization of elevator object
+	elevator := Elevator{
 		State: Idle,
 		Dir: Dir_Stop,
-		Floor: initialFloor, //  <- hw.PollFloorSensor(ch.FloorChan), //Should perhaps be initialized with some function in hw or at least use channals to get floor signal
+		Floor: initialFloor,
 		Queue: [NumFloors][NumButtons]bool{},
 		ID: id,
 	}
@@ -34,7 +34,7 @@ func ElevatorRun(ch SMChannels, initialFloor int, id int) {
 	for{
 		select{
 		case newOrder := <- ch.NewOrder:
-			elevator.Queue[newOrder.Floor][newOrder.Button] = true //Temporarily until we have sorted our Queue system in Governor**
+			elevator.Queue[newOrder.Floor][newOrder.Button] = true
 
 			switch elevator.State{
 			case Idle:
@@ -44,8 +44,8 @@ func ElevatorRun(ch SMChannels, initialFloor int, id int) {
 					elevator.State = DoorOpen
 					hw.SetDoorOpenLamp(true)
 					doorOpenTimer.Reset(3*time.Second)
-					go func() {ch.ServicedFloor <- newOrder.Floor}()
-					elevator.Queue[elevator.Floor] = [NumButtons]bool{} //-- Send message to governor on OrderComplete channal and ask to turn of all lights for that floor.
+					go func() {ch.ServicedFloor <- newOrder.Floor}() //-- Send message to governor on OrderComplete channal and ask to turn off all lights for that floor.
+					elevator.Queue[elevator.Floor] = [NumButtons]bool{} 
 				} else {
 					elevator.State = Moving
 				}
@@ -77,7 +77,7 @@ func ElevatorRun(ch SMChannels, initialFloor int, id int) {
 				hw.SetMotorDirection(Dir_Stop)
 				doorOpenTimer.Reset(3*time.Second)
 				elevator.Queue[elevator.Floor] = [NumButtons]bool{}
-				go func() {ch.ServicedFloor <- elevator.Floor}() //-- Send message to governor on OrderComplete channal and ask to turn of lights
+				go func() {ch.ServicedFloor <- elevator.Floor}() //-- Send message to governor on OrderComplete channal and ask to turn off lights
 				fmt.Println("Floor:",elevator.Floor,"has been sent to orderHandler")
 			}
 			ch.Elevator <- elevator
@@ -91,7 +91,7 @@ func ElevatorRun(ch SMChannels, initialFloor int, id int) {
 				elevator.State = Moving
 				hw.SetMotorDirection(elevator.Dir)
 			}
-			ch.Elevator <- elevator //to update when change in state
+			ch.Elevator <- elevator //to update when there is a change of state
 		}
 	}
 
