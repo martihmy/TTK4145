@@ -1,0 +1,2 @@
+The synchronization module is responsible for keeping all elevators updated on all elevators. It will continously broadcast messages to other elevators with
+updated information on its self and new orders. In addition it continously update the elevators orderHandlers in so all new information on elevators states, direction, floor and current orders can be taken into account when calculating recipients of new orders. 
